@@ -10,6 +10,7 @@ fix_nuc = None
 # optimization 
 calc = pyeffBFGS(p_cfg,emax,fmax,steps,fix_nuc)
 calc.run()
+calc.calc.print_results()
 # show final structure 
 calc.view()
 # write final structure as xyz file 

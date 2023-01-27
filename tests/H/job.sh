@@ -2,4 +2,4 @@
 
 # path to the pyeff src code 
 export PYTHONPATH=../../src:$PYTHONPATH
-python run_optimization.py > pyeff.log 
+python run_optimization.py | tee pyeff.log 
