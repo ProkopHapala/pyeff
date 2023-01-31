@@ -28,6 +28,14 @@ from pyeff_system import *
 # numerical zero
 # note: do not make it to small !
 zero = 0.0000001  # to avoid divide by zero error
+const_bohr    = 0.5291772105638411
+const_Hartree = 27.211386245988
+
+verbosity = 0
+Eunits    = const_Hartree
+
+prefix="#Epiece "
+
 
 # variables
 # --------------------------------------------------------------------
@@ -81,6 +89,7 @@ def read_cfg(p_cfg, print_data=None, factor=1. ):
     for e in range(idx_elec_pos_start, len(ll)):
         # format p[0],p[1],p[2],spin,eradius
         tmp = ll[e].split()
+        #print( "!!!!!!!!!!!!!! tmp:", tmp )
         r    .append([float(tmp[0]), float(tmp[1]), float(tmp[2])])
         delta.append(float(tmp[3]))  # spin
         s    .append(float(tmp[4]))
@@ -189,8 +198,8 @@ def E_ke(calc, s, debug=None):
         E_ke = E_ke + e  # + e2
         F_ke.append(fs)
         # update the calculations object (calc)
-        calc.elec[i].update(energy=e, px=0, py=0, pz=0, pr=0,
-                            spin=0, fx=0, fy=0, fz=0, fr=fs)
+        calc.elec[i].update(energy=e, px=0, py=0, pz=0, pr=0, spin=0, fx=0, fy=0, fz=0, fr=fs)
+        if(verbosity>2):print( prefix+"e%i Ke " %i, e*Eunits )
     return E_ke
 
 
@@ -224,13 +233,14 @@ def E_nuc_nuc(calc, Z, R, debug=None):
                 # note: compared to eff-code update for i and j are switched
                 calc.nuc[i].update(energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=-1*fx, fy=-1*fy, fz=-1*fz, fr=0)
                 calc.nuc[j].update(energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=0)
-
+                if(verbosity>2):print( prefix+"a%i-a%i Coul " %(i,j), e*Eunits )
     return E_nuc_nuc
 
 
 def E_nuc_elec(calc, Z, R, r, s, debug=None):
     E_nuc_elec = 0
     F_nuc_elec = []
+    print( "!!!!!!!!! E_nuc_elec ", len(Z), len(r) )
     for i in range(len(Z)):
         for j in range(len(r)):
             dx = R[i][0]-r[j][0]
@@ -268,6 +278,7 @@ def E_nuc_elec(calc, Z, R, r, s, debug=None):
             # for electron we need dE/ds
             calc.elec[j].update(energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=fs)
 
+            if(verbosity>2):print( prefix+"a%i-e%i Coul " %(i,j), e*Eunits )
     return E_nuc_elec
 
 
@@ -314,6 +325,7 @@ def E_elec_elec(calc, r, s, debug=None):
                                     pr=0, spin=0, fx=-1*fx, fy=-1*fy, fz=-1*fz, fr=fs1)
                 calc.elec[j].update(
                     energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=fs2)
+                if(verbosity>2):print( prefix+"e%i-e%i Coul " %(i,j), e*Eunits )
 
     return E_elec_elec
 
@@ -342,8 +354,11 @@ def E_Pauli(calc, delta, s, r, debug=None, parameters=None):
 
     def E_up_up(rho, r, si, sj):
         # from sympy calculations
+        #print( "DEBUG rho",rho, "r",r, "si",si, "sj",sj )
         E_up_up = (8.0*(-rho + 1.0)*(1/(si/sj + sj/si))**3.0*np.exp(-2.0*r**2/(si**2 + sj**2))/(8.0*(1/(si/sj + sj/si))**3.0*np.exp(-2.0*r**2/(si**2 + sj**2)) + 1.0) + 8.0*(1/(si/sj + sj/si))**3.0 *
                    np.exp(-2.0*r**2/(si**2 + sj**2))/(-8.0*(1/(si/sj + sj/si))**3.0*np.exp(-2.0*r**2/(si**2 + sj**2)) + 1.0))*(-(-4.0*r**2 + 6.0*si**2 + 6.0*sj**2)/(si**2 + sj**2)**2 + 1.5/sj**2 + 1.5/si**2)
+        #print( "DEBUG E_up_up ", E_up_up, "rho",rho, "r[au]",r, "si[au]",si, "sj[au]",sj )
+        #print( "DEBUG E_up_up ", E_up_up, "rho",rho, "r[A]",r*const_bohr, "si[A]",si*const_bohr, "sj[A]",sj*const_bohr )
         # from sympy calculations
         dE_up_updr = -1*1.125*r*(-8.0*si**2*sj**2*(si*sj/(si**2 + sj**2))**3.0*(si**2 + sj**2)*(8.0*(si*sj/(si**2 + sj**2))**3.0 - 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))*(8.0*(si*sj/(si**2 + sj**2))**3.0 + 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))*(64.0*(si*sj/(si**2 + sj**2))**3.0 + 8.0*(rho - 1.0)*(8.0*(si*sj/(si**2 + sj**2))**3.0 - 1.0*np.exp(2.0*r**2/(si**2 + sj**2))) + 8.0*np.exp(2.0*r**2/(si**2 + sj**2))) + (si**2*sj**2*(4.0*r**2 - 6.0*si**2 - 6.0*sj**2) + 1.5*si**2*(si**2 + sj**2)**2 + 1.5*sj**2*(si**2 + sj**2)**2)*(32.0*(si*sj/(si**2 + sj**2))**3.0*(rho - 1.0)*(8.0*(si*sj/(si**2 + sj**2))**3.0 - 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))**2*(8.0*(si*sj/(si**2 + sj**2))
                                  ** 3.0 + 1.0*np.exp(2.0*r**2/(si**2 + sj**2))) + (si*sj/(si**2 + sj**2))**3.0*(8.0*(si*sj/(si**2 + sj**2))**3.0 + 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))**2*(256.0*(si*sj/(si**2 + sj**2))**3.0 - 32.0*np.exp(2.0*r**2/(si**2 + sj**2))) + (si*sj/(si**2 + sj**2))**6.0*(-256.0*rho + 256.0)*(8.0*(si*sj/(si**2 + sj**2))**3.0 - 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))**2 - 256.0*(si*sj/(si**2 + sj**2))**6.0*(8.0*(si*sj/(si**2 + sj**2))**3.0 + 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))**2))/(si**2*sj**2*(si**2 + sj**2)**3*(8.0*(si*sj/(si**2 + sj**2))**3.0 - 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))**2*(8.0*(si*sj/(si**2 + sj**2))**3.0 + 1.0*np.exp(2.0*r**2/(si**2 + sj**2)))**2)
@@ -389,13 +404,14 @@ def E_Pauli(calc, delta, s, r, debug=None, parameters=None):
 
         return E_up_down, dE_up_downdr, dE_up_downds1, dE_up_downds2
 
-    E_1 = 0  # E_up_up contribution
+    E_1 = 0  # E_up_up   contribution
     E_2 = 0  # E_up_down contribution
     F_1 = []
     F_2 = []
     for i in range(len(delta)):
         for j in range(len(delta)):
             if j < i:
+                e=0
                 s_i = s[i]
                 s_j = s[j]
                 dx = r[j][0]-r[i][0]
@@ -407,19 +423,10 @@ def E_Pauli(calc, delta, s, r, debug=None, parameters=None):
                 if delta[i] == delta[j]:
                     if x_ij == 0:
                         x_ij = zero
-                    E1, E1dr, E1ds1, dE1ds2 = E_up_up(
-                        Pauli_rho, Pauli_r*x_ij, Pauli_s*s_i, Pauli_s*s_j)
-                    fr = E1dr
+                    E1, E1dr, E1ds1, dE1ds2 = E_up_up( Pauli_rho, Pauli_r*x_ij, Pauli_s*s_i, Pauli_s*s_j)
+                    fr  = E1dr
                     fs1 = E1ds1
                     fs2 = dE1ds2
-                    if debug != None:
-                        # analytic
-                        E_r, fr_r, fs1_r, fs2_r = sympy_E_Pauli(
-                            x_ij, s_i, s_j, samespin=True, debug=True)
-                        print('pyeff S =\t', Sij)
-                        print('pyeff Delta_T =\t', Tij)
-                        print('pyeff fr =\t', fr)
-                        print('analytic fr =\t', fr_r)
                     E_1 = E_1 + E1
                     e = E1
                     m_x_ij = x_ij
@@ -430,27 +437,16 @@ def E_Pauli(calc, delta, s, r, debug=None, parameters=None):
                     F1 = [fx, fy, fz]
                     F_1.append(F1)
                     # update the calculations object (calc)
-                    calc.elec[i].update(
-                        energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=-1*fx, fy=-1*fy, fz=-1*fz, fr=fs1)
-                    calc.elec[j].update(
-                        energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=fs2)
+                    calc.elec[i].update( energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=-1*fx, fy=-1*fy, fz=-1*fz, fr=fs1)
+                    calc.elec[j].update( energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=fs2)
                     # print 'e1 = '+str(e)+' fx = '+str(fx)+' fy = '+str(fy)+' fz = '+str(fz)
                 if delta[i] != delta[j]:
                     if x_ij == 0:
                         x_ij = zero
-                    E2, E2dr, E2ds1, E2ds2 = E_up_down(
-                        Pauli_rho, Pauli_r*x_ij, Pauli_s*s_i, Pauli_s*s_j)
+                    E2, E2dr, E2ds1, E2ds2 = E_up_down( Pauli_rho, Pauli_r*x_ij, Pauli_s*s_i, Pauli_s*s_j)
                     fr = E2dr
                     fs1 = E2ds1
                     fs2 = E2ds2
-                    if debug != None:
-                        # analytic
-                        E_r, fr_r, fs1_r, fs2_r = sympy_E_Pauli(
-                            x_ij, s_i, s_j, samespin=False, debug=True)
-                        print('pyeff S =\t', Sij)
-                        print('pyeff Delta_T =\t', Tij)
-                        print('pyeff fr =\t', fr)
-                        print('analytic fr =\t', fr_r)
                     fr = E2dr
                     fs1 = E2ds1
                     fs2 = E2ds2
@@ -463,12 +459,12 @@ def E_Pauli(calc, delta, s, r, debug=None, parameters=None):
                     F2 = [fx, fy, fz]
                     F_2.append(F2)
                     # update the calculations object (calc)
-                    calc.elec[i].update(
-                        energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=-1*fx, fy=-1*fy, fz=-1*fz, fr=fs1)
-                    calc.elec[j].update(
-                        energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=fs2)
+                    calc.elec[i].update(energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=-1*fx, fy=-1*fy, fz=-1*fz, fr=fs1)
+                    calc.elec[j].update(energy=e/2., px=0, py=0, pz=0, pr=0, spin=0, fx=fx, fy=fy, fz=fz, fr=fs2)
                     # print 'e2 = '+str(e)+' fx = '+str(fx)+' fy = '+str(fy)+' fz = '+str(fz)
+                if(verbosity>2):print( prefix+"e%i-e%i Paul " %(i,j), e*Eunits )
     E_Pauli = (E_1 + E_2)
+    #print( "DEBUG E_Pauli[Ht] ",E_Pauli,"E_Pauli[eV]",E_Pauli*27.211386245988," Pauli_r",Pauli_r, "Pauli_s",Pauli_s ) 
     return E_Pauli
 
 

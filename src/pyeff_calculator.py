@@ -64,45 +64,57 @@ class pyeff(FileIOCalculator):
 
         # pyeff_energy_force calculation
         [pyeff_calc, Z, R, r, s, delta] = read_cfg(self.p_cfg, factor=1./self.factor )
+
+        self.aZs   = Z
+        self.apos  = R
+        self.epos  = r
+        self.esize = s
+        self.espin = delta
+
         types = pyeff_calc.types()
         self.types = types
-        chemical_symbols = pyeff_calc.chemical_symbols()
+        chemical_symbols      = pyeff_calc.chemical_symbols()
         self.chemical_symbols = chemical_symbols
-        positions = pyeff_calc.positions()
-        self.positions = positions
-        sizes = pyeff_calc.sizes()
-        self.sizes = sizes
-        spins = pyeff_calc.spins()
-        self.spins = spins
-        Eke = E_ke(pyeff_calc, s)
-        Enucnuc = E_nuc_nuc(pyeff_calc, Z, R)
-        Enucelec = E_nuc_elec(pyeff_calc, Z, R, r, s)
+        positions             = pyeff_calc.positions()
+        self.positions        = positions
+        sizes                 = pyeff_calc.sizes()
+        self.sizes            = sizes
+        spins                 = pyeff_calc.spins()
+        self.spins            = spins
+        Eke       = E_ke       (pyeff_calc, s)
+        Enucnuc   = E_nuc_nuc  (pyeff_calc, Z, R)
+        Enucelec  = E_nuc_elec (pyeff_calc, Z, R, r, s)
         Eelecelec = E_elec_elec(pyeff_calc, r, s)
-        EPauli = E_Pauli(pyeff_calc, delta, s, r)
+        EPauli    = E_Pauli    (pyeff_calc, delta, s, r)
         self.results['energy'] = pyeff_calc.total_energy()
+        self.results['Eke']       = Eke
+        self.results['Enucnuc']   = Enucnuc
+        self.results['Enucelec']  = Enucelec
+        self.results['Eelecelec'] = Eelecelec
+        self.results['EPauli']    = EPauli
+        self.results['energy']    = pyeff_calc.total_energy()
+        self.results['forces']    = np.array(pyeff_calc.forces())
         self.results['forces'] = np.array(pyeff_calc.forces())
         # atoms object
         bohr = 0.5291772105638411
         # unit conversion in pyeff positons have bohr: bohr2angstroem
-        atoms = Atoms(''.join(self.get_chemical_symbols()),
-                      positions=np.array(pyeff_calc.positions()))  # *bohr)
+        atoms = Atoms(''.join(self.get_chemical_symbols()), positions=np.array(pyeff_calc.positions()))  # *bohr)
         self.atoms = atoms
         fr = pyeff_calc.rforces()
         self.fr = fr
         # 1d vectors for pyeff optimization
-        positions1d = pyeff_calc.positions1d()
+        positions1d      = pyeff_calc.positions1d()
         self.positions1d = positions1d
-        self.positions = positions1d
-        forces1d = pyeff_calc.forces1d(fix_nuc=self.fix_nuc)
-        self.forces1d = forces1d
-        self.forces = forces1d
+        self.positions   = positions1d
+        forces1d         = pyeff_calc.forces1d(fix_nuc=self.fix_nuc)
+        self.forces1d    = forces1d
+        self.forces      = forces1d
         # general access of the pyeff object
         self.pyeff_calc = pyeff_calc
 
     def calculate(self, atoms, properties=['energy'], system_changes=['positions']):
         Calculator.calculate(self, atoms, properties, system_changes)
-
-        print( "self.factor", self.factor )
+        #print( "self.factor", self.factor )
 
         atoms = self.get_atoms()
         atoms = self.atoms
@@ -131,23 +143,21 @@ class pyeff(FileIOCalculator):
         Enucelec  = E_nuc_elec (pyeff_calc, Z, R, r, s)
         Eelecelec = E_elec_elec(pyeff_calc, r, s)
         EPauli    = E_Pauli    (pyeff_calc, delta, s, r)
-        
         self.results['Eke']       = Eke
         self.results['Enucnuc']   = Enucnuc
         self.results['Enucelec']  = Enucelec
         self.results['Eelecelec'] = Eelecelec
         self.results['EPauli']    = EPauli
-        
-        self.results['energy'] = pyeff_calc.total_energy()
-        self.results['forces'] = np.array(pyeff_calc.forces())
+        self.results['energy']    = pyeff_calc.total_energy()
+        self.results['forces']    = np.array(pyeff_calc.forces())
         # radial forces
         fr = pyeff_calc.rforces()
-        self.fr = fr
+        self.fr         = fr
         # 1d vectors for pyeff optimization
-        positions1d = pyeff_calc.positions1d()
-        self.positions = positions1d
-        forces1d = pyeff_calc.forces1d(fix_nuc=self.fix_nuc)
-        self.forces = forces1d
+        positions1d     = pyeff_calc.positions1d()
+        self.positions  = positions1d
+        forces1d        = pyeff_calc.forces1d(fix_nuc=self.fix_nuc)
+        self.forces     = forces1d
         # general access of the pyeff object
         self.pyeff_calc = pyeff_calc
 
@@ -174,6 +184,7 @@ class pyeff(FileIOCalculator):
         o.close()
 
     def get_energy(self):
+        #print( "DEBUG get_energy() : verbosity", verbosity )
         # return the pyeff total energy
         atoms = self.atoms
         self.check_state(atoms)
@@ -283,13 +294,13 @@ class pyeff(FileIOCalculator):
         #print( self.results )
         self.printAtoms()
         self.printElectrons()
-        factor = 27.2114
-        print( "Etot",self.results['energy'   ]*factor,
-               "Ek", self.results['Eke'       ]*factor,
-               "Eee", self.results['Eelecelec']*factor,
-               "EPaul", self.results['EPauli' ]*factor,
-               "Eae", self.results['Enucelec' ]*factor,
-               "Eaa", self.results['Enucnuc'  ]*factor,
+        factor = 27.2114079527
+        print( "Etot" , self.results['energy'   ]*factor,
+               "Ek"   , self.results['Eke'      ]*factor,
+               "Eee"  , self.results['Eelecelec']*factor,
+               "EPaul", self.results['EPauli'   ]*factor,
+               "Eae"  , self.results['Enucelec' ]*factor,
+               "Eaa"  , self.results['Enucnuc'  ]*factor, "eV"
              )
 
     def view(self):
